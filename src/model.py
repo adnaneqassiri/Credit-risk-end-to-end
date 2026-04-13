@@ -33,11 +33,16 @@ def train_model(df_train, df_test):
 
         # Modèle de classification
         model = lgb.LGBMClassifier(
-            n_estimators=1000,
-            learning_rate=0.005,
-            num_leaves=64,
-            subsample=0.7,
+            n_estimators=5000,
+            learning_rate=0.001,
+            num_leaves=128,
+            max_depth=-1,
+            min_data_in_leaf=100,
+            subsample=0.8,
+            subsample_freq=1,
             colsample_bytree=0.8,
+            reg_alpha=0.1,
+            reg_lambda=1.0,
             random_state=42,
             n_jobs=-1,
             scale_pos_weight=scale_pos_weight
@@ -47,7 +52,7 @@ def train_model(df_train, df_test):
             X_train, y_train,
             eval_set=[(X_valid, y_valid)],
             eval_metric="auc",
-            callbacks=[lgb.early_stopping(200, verbose=True)]
+            callbacks=[lgb.early_stopping(600, verbose=True)]
         )
         results['auc_train'] = eval(model, X_train, y_train)
         results['auc_val'] = eval(model, X_valid, y_valid)

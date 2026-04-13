@@ -1,57 +1,47 @@
-import pandas as pd
-import re
+import sys
+import os
+sys.path.append(os.path.abspath(".."))
+
+from data import transform_application_table, transform_bureau_tables, transform_previous_and_pos_cash
 from model import train_model
+import pandas as pd
+pd.set_option('display.max_columns', None)
 
-def sanitize_feature_names(df):
-    df = df.copy()
-    df.columns = [
-        re.sub(r'[^A-Za-z0-9_]+', '_', str(col)).strip('_')
-        for col in df.columns
-    ]
-    return df
-
-def cast_object_to_category(df):
-    df = df.copy()
-    obj_cols = df.select_dtypes(include=["object"]).columns
-    for col in obj_cols:
-        df[col] = df[col].astype("category")
-    return df
-
-# Chargement
-df_train = pd.read_csv('../notebooks/df_train_final.csv', header=0)
-df_test = pd.read_csv('../notebooks/df_test_final.csv', header=0)
-
-# Sauvegarder les IDs avant toute modification
-t_df_id = df_test['SK_ID_CURR'].copy()
-
-# Préprocessing
-df_train = sanitize_feature_names(cast_object_to_category(df_train))
-df_test = sanitize_feature_names(cast_object_to_category(df_test))
-
-# Entraînement
-results = train_model(df_train, df_test)
-
-# Selon ton implémentation, il faut récupérer le modèle entraîné.
-# Cas le plus probable : train_model retourne un dict contenant le modèle.
-model = results["model"]
-
-# Construire X_test
-# On enlève  SK_ID_CURR
-X_test = df_test.drop(columns=['SK_ID_CURR'])
+####  ---- Paths
+table_applications_train_path = "../data/raw/application_train.csv"
+table_applications_test_path = "../data/raw/application_test.csv"
+bureau_path = "../data/raw/bureau.csv"
+bureau_balance_path = "../data/raw/bureau_balance.csv"
+previous_path = "../data/raw/previous_application.csv"
+pos_path = "../data/raw/POS_CASH_balance.csv"
 
 
-# Prédiction des probabilités de la classe positive
-t_pred = model.predict_proba(X_test)[:, 1]
+####  ---- Reading Dataframes
+df_train = pd.read_csv(table_applications_train_path)
+df_test = pd.read_csv(table_applications_test_path)
+bureau = pd.read_csv(bureau_path, header=0)
+bureau_balance = pd.read_csv(bureau_balance_path, header=0)
+previous_app = pd.read_csv(previous_path, header=0)
+pos_cash = pd.read_csv(pos_path, header=0)
 
-submission = pd.DataFrame({
-    "SK_ID_CURR": t_df_id.values,
-    "TARGET": t_pred
-})
 
-submission = submission.groupby("SK_ID_CURR", as_index=False)["TARGET"].mean()
 
-# Sauvegarde
-submission.to_csv("../data/submission.csv", index=False)
+####  ---- Transforming Datframes
+df_train_tf = transform_application_table(df_train)
+df_test_tf = transform_application_table(df_test)
+final_bureau_table = transform_bureau_tables(bureau, bureau_balance)
+previous_app_tf = transform_previous_and_pos_cash(previous_app, pos_cash)
 
-print(submission.head())
-print("Fichier sauvegardé : ../data/submission.csv")
+print(final_bureau_table.shape)
+print(df_train_tf.shape)
+print(previous_app_tf.shape)
+
+
+train_df = df_train_tf.merge(final_bureau_table, on='SK_ID_CURR', how='left').merge(previous_app_tf, on='SK_ID_CURR', how='left')
+test_df = df_test_tf.merge(final_bureau_table, on='SK_ID_CURR', how='left').merge(previous_app_tf, on='SK_ID_CURR', how='left')
+
+
+train_df.to_parquet('../data/train_data/df_train_final.parquet')
+test_df.to_parquet('../data/train_data/df_test_final.parquet')
+
+print("The datadframes are saved to: '../data/train_data/'")
