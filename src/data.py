@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
+import re
 
 
 def transform_application_table(df):
     """
     Function only designed for lightgbm algorithm that accepts null values
     """
-    print(f"Cols Count before: {len(df.columns)}")
+    # print(f"Cols Count before: {len(df.columns)}")
     
     # Missing goods price flag
     df['GOODS_PRICE_MISSING'] = df['AMT_GOODS_PRICE'].isna().astype(int)
@@ -50,7 +51,7 @@ def transform_application_table(df):
         df[col] = df[col].astype("category")
     
     
-    print(f"Cols Count before: {len(df.columns)}")
+    # print(f"Cols Count before: {len(df.columns)}")
     
     return df
 
@@ -323,3 +324,164 @@ def transform_previous_and_pos_cash(df_previous_applications, df_pos_cash):
     final.replace([np.inf, -np.inf], np.nan, inplace=True)
 
     return final
+
+
+
+
+def transform_credit_card_balance(df_credit_card):
+    df = df_credit_card.copy()
+
+    # ==================================================
+    # 1) Convert object columns to category
+    # ==================================================
+    obj_cols = df.select_dtypes(include=["object"]).columns.tolist()
+    for col in obj_cols:
+        df[col] = df[col].astype("category")
+
+    # ==================================================
+    # 2) Missing flags
+    # ==================================================
+    cols_with_missing = df.columns[df.isna().any()].tolist()
+    for col in cols_with_missing:
+        df[f"{col}_MISSING_FLAG"] = df[col].isna().astype(int)
+
+    # ==================================================
+    # 3) Key engineered features
+    # ==================================================
+
+    # Safe denominators
+    credit_limit = df["AMT_CREDIT_LIMIT_ACTUAL"].replace(0, np.nan)
+    balance = df["AMT_BALANCE"].replace(0, np.nan)
+    min_inst = df["AMT_INST_MIN_REGULARITY"].replace(0, np.nan)
+    drawings = df["AMT_DRAWINGS_CURRENT"].replace(0, np.nan)
+    cnt_drawings = df["CNT_DRAWINGS_CURRENT"].replace(0, np.nan)
+
+    # --- Utilization / exposure
+    df["CC_UTILIZATION_RATIO"] = df["AMT_BALANCE"] / credit_limit
+    df["CC_RECEIVABLE_TO_LIMIT_RATIO"] = df["AMT_TOTAL_RECEIVABLE"] / credit_limit
+    df["CC_PRINCIPAL_TO_LIMIT_RATIO"] = df["AMT_RECEIVABLE_PRINCIPAL"] / credit_limit
+
+    # --- Payment behavior
+    df["CC_PAYMENT_BALANCE_RATIO"] = df["AMT_PAYMENT_CURRENT"] / balance
+    df["CC_TOTAL_PAYMENT_BALANCE_RATIO"] = df["AMT_PAYMENT_TOTAL_CURRENT"] / balance
+    df["CC_PAYMENT_MIN_RATIO"] = df["AMT_PAYMENT_CURRENT"] / min_inst
+    df["CC_TOTAL_PAYMENT_MIN_RATIO"] = df["AMT_PAYMENT_TOTAL_CURRENT"] / min_inst
+
+    # --- Spending / drawings
+    df["CC_ATM_DRAWING_RATIO"] = df["AMT_DRAWINGS_ATM_CURRENT"] / drawings
+    df["CC_POS_DRAWING_RATIO"] = df["AMT_DRAWINGS_POS_CURRENT"] / drawings
+    df["CC_OTHER_DRAWING_RATIO"] = df["AMT_DRAWINGS_OTHER_CURRENT"] / drawings
+    df["CC_AVG_DRAWING_AMOUNT"] = df["AMT_DRAWINGS_CURRENT"] / cnt_drawings
+
+    # --- Debt composition
+    df["CC_PRINCIPAL_RATIO"] = df["AMT_RECEIVABLE_PRINCIPAL"] / df["AMT_TOTAL_RECEIVABLE"].replace(0, np.nan)
+    df["CC_BALANCE_TO_RECEIVABLE_RATIO"] = df["AMT_BALANCE"] / df["AMT_TOTAL_RECEIVABLE"].replace(0, np.nan)
+
+    # --- Delinquency flags
+    df["CC_HAS_DPD"] = (df["SK_DPD"] > 0).astype(int)
+    df["CC_HAS_DPD_DEF"] = (df["SK_DPD_DEF"] > 0).astype(int)
+    df["CC_HAS_SEVERE_DPD"] = (df["SK_DPD"] >= 30).astype(int)
+    df["CC_HAS_SEVERE_DPD_DEF"] = (df["SK_DPD_DEF"] >= 30).astype(int)
+
+    # --- Payment adequacy flags
+    df["CC_PAID_MIN_FLAG"] = (df["AMT_PAYMENT_CURRENT"] >= df["AMT_INST_MIN_REGULARITY"]).astype(int)
+    df["CC_UNDERPAID_MIN_FLAG"] = (
+        (df["AMT_PAYMENT_CURRENT"] < df["AMT_INST_MIN_REGULARITY"]) &
+        df["AMT_INST_MIN_REGULARITY"].notna()
+    ).astype(int)
+
+    # --- Activity flags
+    df["CC_HAS_BALANCE_FLAG"] = (df["AMT_BALANCE"] > 0).astype(int)
+    df["CC_HAS_DRAWINGS_FLAG"] = (df["AMT_DRAWINGS_CURRENT"] > 0).astype(int)
+    df["CC_HAS_ATM_DRAWINGS_FLAG"] = (df["AMT_DRAWINGS_ATM_CURRENT"] > 0).astype(int)
+    df["CC_HAS_POS_DRAWINGS_FLAG"] = (df["AMT_DRAWINGS_POS_CURRENT"] > 0).astype(int)
+
+    # --- Time helper
+    df["MONTHS_BALANCE_ABS"] = df["MONTHS_BALANCE"].abs()
+
+    # Clean inf
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # ==================================================
+    # 4) Numeric aggregations by client
+    # ==================================================
+    num_cols = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+    num_cols = [col for col in num_cols if col not in ["SK_ID_CURR", "SK_ID_PREV"]]
+
+    agg_dict = {col: ["mean", "max", "min", "sum"] for col in num_cols}
+    agg_dict["SK_ID_PREV"] = ["nunique", "count"]
+
+    df_num_agg = df.groupby("SK_ID_CURR").agg(agg_dict)
+
+    df_num_agg.columns = [
+        f"CC_{col}_{stat}".upper() for col, stat in df_num_agg.columns
+    ]
+    df_num_agg.reset_index(inplace=True)
+
+    # ==================================================
+    # 5) Categorical aggregations by client
+    # ==================================================
+    cat_cols = df.select_dtypes(include=["category"]).columns.tolist()
+    cat_agg_list = []
+
+    for col in cat_cols:
+        tmp = pd.crosstab(df["SK_ID_CURR"], df[col], dropna=False)
+        tmp.columns = [
+            f"CC_{col}_{str(val)}_COUNT".upper().replace(" ", "_")
+            for val in tmp.columns
+        ]
+        tmp.reset_index(inplace=True)
+        cat_agg_list.append(tmp)
+
+    if cat_agg_list:
+        df_cat_agg = cat_agg_list[0]
+        for tmp in cat_agg_list[1:]:
+            df_cat_agg = df_cat_agg.merge(tmp, on="SK_ID_CURR", how="left")
+
+        final = df_num_agg.merge(df_cat_agg, on="SK_ID_CURR", how="left")
+    else:
+        final = df_num_agg
+
+    # Final cleanup
+    final.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    return final
+
+
+
+def clean_feature_names(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    cleaned_cols = []
+
+    for col in df.columns:
+        col = str(col)
+
+        # replace any non-alphanumeric character with underscore
+        col = re.sub(r"[^A-Za-z0-9_]+", "_", col)
+
+        # collapse repeated underscores
+        col = re.sub(r"_+", "_", col)
+
+        # remove leading/trailing underscores
+        col = col.strip("_")
+
+        # LightGBM also dislikes empty names
+        if col == "":
+            col = "EMPTY_COL"
+
+        cleaned_cols.append(col)
+
+    # ensure uniqueness after cleaning
+    counts = {}
+    unique_cols = []
+    for col in cleaned_cols:
+        if col in counts:
+            counts[col] += 1
+            unique_cols.append(f"{col}_{counts[col]}")
+        else:
+            counts[col] = 0
+            unique_cols.append(col)
+
+    df.columns = unique_cols
+    return df

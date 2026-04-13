@@ -209,3 +209,30 @@ NAME_MISSING_FLAG for all missing
 AMT_ANNUITY_AMT_APPLICATION_RATIO = AMT_ANNUITY / AMT_APPLICATION
 AMT_ANNUITY_AMT_CREDIT_RATIO  = AMT_ANNUITY / AMT_CREDIT
 AMT_GOODS_PRICE_AMT_CREDIT_RATIO = AMT_GOODS_PRICE / AMT_CREDIT
+
+
+
+
+0     SK_ID_PREV                          0               0.00%           int64           - 
+1     SK_ID_CURR                          0               0.00%           int64           - 
+2     MONTHS_BALANCE                      0               0.00%           int64           - 
+3     AMT_BALANCE                         0               0.00%           float64         - 
+4     AMT_CREDIT_LIMIT_ACTUAL             0               0.00%           int64           - 
+5     AMT_DRAWINGS_ATM_CURRENT            749816          19.52%          float64         - 
+6     AMT_DRAWINGS_CURRENT                0               0.00%           float64         - 
+7     AMT_DRAWINGS_OTHER_CURRENT          749816          19.52%          float64         - 
+8     AMT_DRAWINGS_POS_CURRENT            749816          19.52%          float64         - 
+9     AMT_INST_MIN_REGULARITY             305236          7.95%           float64         - 
+10    AMT_PAYMENT_CURRENT                 767988          20.00%          float64         - 
+11    AMT_PAYMENT_TOTAL_CURRENT           0               0.00%           float64         - 
+12    AMT_RECEIVABLE_PRINCIPAL            0               0.00%           float64         - 
+13    AMT_RECIVABLE                       0               0.00%           float64         - 
+14    AMT_TOTAL_RECEIVABLE                0               0.00%           float64         - 
+15    CNT_DRAWINGS_ATM_CURRENT            749816          19.52%          float64         - 
+16    CNT_DRAWINGS_CURRENT                0               0.00%           int64           - 
+17    CNT_DRAWINGS_OTHER_CURRENT          749816          19.52%          float64         - 
+18    CNT_DRAWINGS_POS_CURRENT            749816          19.52%          float64         - 
+19    CNT_INSTALMENT_MATURE_CUM           305236          7.95%           float64         - 
+20    NAME_CONTRACT_STATUS                0               0.00%           object          - 
+21    SK_DPD                              0               0.00%           int64           - 
+22    SK_DPD_DEF                          0               0.00%           int64           - 

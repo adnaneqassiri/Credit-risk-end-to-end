@@ -33,14 +33,14 @@ def train_model(df_train, df_test):
 
         # Modèle de classification
         model = lgb.LGBMClassifier(
-            n_estimators=5000,
-            learning_rate=0.001,
-            num_leaves=128,
+            n_estimators=7000,
+            learning_rate=0.0005,
+            num_leaves=256,
             max_depth=-1,
-            min_data_in_leaf=100,
-            subsample=0.8,
+            min_data_in_leaf=150,
+            subsample=0.6,
             subsample_freq=1,
-            colsample_bytree=0.8,
+            colsample_bytree=0.6,
             reg_alpha=0.1,
             reg_lambda=1.0,
             random_state=42,
