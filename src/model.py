@@ -33,11 +33,11 @@ def train_model(df_train, df_test):
 
         # Modèle de classification
         model = lgb.LGBMClassifier(
-            n_estimators=8000,
+            n_estimators=6000,
             learning_rate=0.0005,
-            num_leaves=304,
+            num_leaves=256,
             max_depth=-1,
-            min_data_in_leaf=150,
+            min_data_in_leaf=120,
             subsample=0.6,
             subsample_freq=1,
             colsample_bytree=0.6,
@@ -69,6 +69,7 @@ def train_model(df_train, df_test):
                 'TARGET': df
             }
         )
+        os.makedirs("../data/submissions/", exist_ok=True)
         submission.to_csv("../data/submissions/submission.csv", index=False)
 
     return results

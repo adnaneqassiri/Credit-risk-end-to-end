@@ -62,6 +62,7 @@ train_df = df_train_tf.merge(final_bureau_table, on='SK_ID_CURR', how='left').me
 test_df = df_test_tf.merge(final_bureau_table, on='SK_ID_CURR', how='left').merge(previous_app_tf, on='SK_ID_CURR', how='left').merge(credit_card_tf, on='SK_ID_CURR', how='left').merge(installments_tf, on='SK_ID_CURR', how='left')
 
 logging.info("Saving final datasets...")
+os.makedirs("../data/train_data/", exist_ok=True)
 train_df.to_parquet('../data/train_data/df_train_final.parquet')
 test_df.to_parquet('../data/train_data/df_test_final.parquet')
 
