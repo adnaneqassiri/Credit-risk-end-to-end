@@ -1,77 +1,63 @@
 import sys
 import os
-sys.path.append(os.path.abspath(".."))
-
 import pandas as pd
-pd.set_option('display.max_columns', None)
-
 from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 import lightgbm as lgb
 from collections import Counter
+from src.config import SUBMISSIONS_DIR
+
+sys.path.append(os.path.abspath(".."))
+pd.set_option('display.max_columns', None)
 
 
-def train_model(df_train, df_test):
+def train_model(df_train):
     results = {
         "auc_train": 0,
         "auc_val": 0,
         "model": ''
     }
-    if df_train is not None:
-        # Variables explicatives et cible
-        y = df_train["TARGET"]
-        X = df_train.drop(columns=["TARGET", "SK_ID_CURR"])
+    
+    # Variables explicatives et cible
+    y = df_train["TARGET"]
+    X = df_train.drop(columns=["TARGET", "SK_ID_CURR"])
 
-        # Découpage train / test
-        X_train, X_valid, y_train, y_valid = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
-        )
+    # Découpage train / test
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
 
-        counter = Counter(y_train)
-        scale_pos_weight = counter[0] / counter[1]
+    counter = Counter(y_train)
+    scale_pos_weight = counter[0] / counter[1]
 
-        # Modèle de classification
-        model = lgb.LGBMClassifier(
-            n_estimators=6000,
-            learning_rate=0.0005,
-            num_leaves=256,
-            max_depth=-1,
-            min_data_in_leaf=120,
-            subsample=0.6,
-            subsample_freq=1,
-            colsample_bytree=0.6,
-            reg_alpha=0.1,
-            reg_lambda=1.0,
-            random_state=42,
-            n_jobs=-1,
-            scale_pos_weight=scale_pos_weight
-        )
+    # Modèle de classification
+    model = lgb.LGBMClassifier(
+        n_estimators=6000,
+        learning_rate=0.0005,
+        num_leaves=256,
+        max_depth=-1,
+        min_data_in_leaf=120,
+        subsample=0.6,
+        subsample_freq=1,
+        colsample_bytree=0.6,
+        reg_alpha=0.1,
+        reg_lambda=1.0,
+        random_state=42,
+        n_jobs=-1,
+        scale_pos_weight=scale_pos_weight
+    )
 
-        model.fit(
-            X_train, y_train,
-            eval_set=[(X_valid, y_valid)],
-            eval_metric="auc",
-            callbacks=[lgb.early_stopping(600, verbose=True)]
-        )
-        results['auc_train'] = eval(model, X_train, y_train)
-        results['auc_val'] = eval(model, X_valid, y_valid)
-        results['model'] = model
-        
-    if df_test is not None:
-        ids = df_test["SK_ID_CURR"]
-        X = df_test.drop(columns=["SK_ID_CURR"])
-        results['submit_target'] = df = model.predict_proba(X)[:, 1]
-        
-        submission = pd.DataFrame(
-            {
-                'SK_ID_CURR': ids.values,
-                'TARGET': df
-            }
-        )
-        os.makedirs("../data/submissions/", exist_ok=True)
-        submission.to_csv("../data/submissions/submission.csv", index=False)
-
+    model.fit(
+        X_train, y_train,
+        eval_set=[(X_valid, y_valid)],
+        eval_metric="auc",
+        callbacks=[lgb.early_stopping(600, verbose=True)]
+    )
+    results['auc_train'] = eval(model, X_train, y_train)
+    results['auc_val'] = eval(model, X_valid, y_valid)
+    results['model'] = model
+    
     return results
     
         
@@ -99,3 +85,20 @@ def eval(model, X, y):
     plt.show()
     
     return auc_score
+
+
+def test_model(model, X_test):
+    ids = X_test["SK_ID_CURR"]
+    X = X_test.drop(columns=["SK_ID_CURR"])
+    df = model.predict_proba(X)[:, 1]
+    
+    submission = pd.DataFrame(
+        {
+            'SK_ID_CURR': ids.values,
+            'TARGET': df
+        }
+    )
+    
+    os.makedirs(SUBMISSIONS_DIR, exist_ok=True)
+    submission.to_csv(SUBMISSIONS_DIR / 'submission.csv', index=False)
+    return submission

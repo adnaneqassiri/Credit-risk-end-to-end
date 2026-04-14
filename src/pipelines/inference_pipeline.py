@@ -1,15 +1,26 @@
 import sys
 import os
-import re
-sys.path.append(os.path.abspath(".."))
-from model import train_model
-from data import clean_feature_names
-import pandas as pd
-pd.set_option('display.max_columns', None)
 import joblib
+import logging
+import pandas as pd
+from src.model import test_model
+from src.config import TRAIN_DATA_DIR, MODEL_PATH
 
-df_train = pd.read_parquet('../data/train_data/df_train_final.parquet')
-df_test = pd.read_parquet('../data/train_data/df_test_final.parquet')
+sys.path.append(os.path.abspath(".."))
+pd.set_option('display.max_columns', None)
+# Logging config
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logging.info("Starting inference pipeline")
+
+
+logging.info(f"Loading test data from {TRAIN_DATA_DIR}")
+df_test = pd.read_parquet(os.path.join(TRAIN_DATA_DIR, 'df_test_final.parquet'))
+logging.info(f"Test data loaded with shape: {df_test.shape}")
+
 
 cols_to_drop = ['AMT_GOODS_PRICE',
  'AMT_REQ_CREDIT_BUREAU_DAY_MISSING_FLAG',
@@ -315,20 +326,16 @@ cols_to_drop = ['AMT_GOODS_PRICE',
  'YEARS_BUILD_MODE_MISSING_FLAG']
 
 
-print("Training Data shape before droping cols: ", df_train.shape)
+logging.info(f"Loading model from {MODEL_PATH}")
+model = joblib.load(MODEL_PATH)
+logging.info("Model loaded successfully")
 
-df_train = df_train.drop(columns=cols_to_drop)
+logging.info("Dropping unused columns")
+logging.info(f"Shape before dropping: {df_test.shape}")
 df_test = df_test.drop(columns=cols_to_drop)
-print("Training Data shape after droping cols: ", df_train.shape)
-
-result = train_model(clean_feature_names(df_train), clean_feature_names(df_test))
+logging.info(f"Shape after dropping: {df_test.shape}")
 
 
-
-os.makedirs("../models", exist_ok=True)
-# Save model
-joblib.dump(result['model'], "../models/lgbm_model.pkl")
-
-
-print(df_train["TARGET"].isna().sum())
-print(df_train["TARGET"].value_counts(dropna=False))
+logging.info("Running model inference")
+submission = test_model(model, df_test)
+logging.info("Inference completed successfully")
