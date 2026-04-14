@@ -69,7 +69,7 @@ def train_model(df_train, df_test):
                 'TARGET': df
             }
         )
-        submission.to_csv("../data/submission.csv", index=False)
+        submission.to_csv("../../data/submissions/submission.csv", index=False)
 
     return results
     
