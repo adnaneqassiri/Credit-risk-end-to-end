@@ -3,8 +3,16 @@ from typing import Dict, Any
 
 
 class PredictionRequest(BaseModel):
-    SK_ID_CURR: int
-    features: Dict[str, Any] = Field(default_factory=dict)
+    SK_ID_CURR: int = Field(..., gt=0, example=123456)
+    features: Dict[str, Any] = Field(
+        default_factory=dict,
+        example={
+            "DEBT_RATIO": 0.42,
+            "TOTAL_DEBT": 150000,
+            "TOTAL_CREDIT": 350000,
+            "ACTIVE_LOANS_COUNT": 2
+        }
+    )
 
 
 class PredictionResponse(BaseModel):
