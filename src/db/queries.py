@@ -1,3 +1,5 @@
+import json
+import math
 import pandas as pd
 from src.db.connection import get_connection
 
@@ -10,42 +12,75 @@ def get_risk_class(score: float) -> str:
     return "HIGH"
 
 
-def insert_predictions(submission: pd.DataFrame, model_version: str, table_name: str = "predictions_log"):
-    """
-    Insert predictions into PostgreSQL.
+def clean_json_value(value):
+    if pd.isna(value):
+        return None
 
-    Expected submission columns:
+    if isinstance(value, float):
+        if math.isinf(value) or math.isnan(value):
+            return None
+
+    return value
+
+
+def insert_predictions_with_features(
+    submission: pd.DataFrame,
+    features_df: pd.DataFrame,
+    model_version: str,
+    table_name: str = "predictions_log"
+):
+    """
+    submission must contain:
     - SK_ID_CURR
     - TARGET
+
+    features_df must contain:
+    - SK_ID_CURR
+    - all feature columns used for inference
     """
+
     if submission.empty:
-        print("DataFrame vide, rien à insérer.")
+        print("Submission vide, rien à insérer.")
         return
 
-    required_cols = {"SK_ID_CURR", "TARGET"}
-    missing_cols = required_cols - set(submission.columns)
-    if missing_cols:
-        raise ValueError(f"Colonnes manquantes dans submission: {missing_cols}")
+    required_submission_cols = {"SK_ID_CURR", "TARGET"}
+    missing_submission_cols = required_submission_cols - set(submission.columns)
+    if missing_submission_cols:
+        raise ValueError(f"Colonnes manquantes dans submission: {missing_submission_cols}")
 
-    df = submission.copy()
+    if "SK_ID_CURR" not in features_df.columns:
+        raise ValueError("La colonne 'SK_ID_CURR' doit exister dans features_df.")
 
-    # Add extra columns for DB
-    df["prediction_score"] = df["TARGET"].astype(float)
-    df["risk_class"] = df["prediction_score"].apply(get_risk_class)
-    df["model_version"] = model_version
+    merged_df = submission.merge(features_df, on="SK_ID_CURR", how="left")
 
-    # Keep only DB columns
-    df_to_insert = df[["SK_ID_CURR", "prediction_score", "risk_class", "model_version"]].copy()
+    values = []
+    for _, row in merged_df.iterrows():
+        sk_id_curr = int(row["SK_ID_CURR"])
+        prediction_score = float(row["TARGET"])
+        risk_class = get_risk_class(prediction_score)
 
-    # Convert NaN / pd.NA -> None for PostgreSQL
-    df_to_insert = df_to_insert.where(pd.notnull(df_to_insert), None)
+        input_features = row.drop(labels=["SK_ID_CURR", "TARGET"]).to_dict()
+
+        cleaned_input_features = {
+            k: clean_json_value(v)
+            for k, v in input_features.items()
+        }
+
+        values.append(
+            (
+                sk_id_curr,
+                prediction_score,
+                risk_class,
+                model_version,
+                json.dumps(cleaned_input_features, default=str),
+            )
+        )
 
     query = f"""
-        INSERT INTO "{table_name}" ("SK_ID_CURR", prediction_score, risk_class, model_version)
-        VALUES (%s, %s, %s, %s);
+        INSERT INTO "{table_name}"
+        ("SK_ID_CURR", prediction_score, risk_class, model_version, input_features)
+        VALUES (%s, %s, %s, %s, %s::jsonb);
     """
-
-    values = [tuple(row) for row in df_to_insert.to_numpy()]
 
     with get_connection() as conn:
         with conn.cursor() as cur:

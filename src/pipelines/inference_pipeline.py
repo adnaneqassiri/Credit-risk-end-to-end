@@ -2,10 +2,11 @@ import os
 import json
 import joblib
 import logging
+import numpy as np
 import pandas as pd
 
 from src.model import test_model
-from src.db.queries import insert_predictions
+from src.db.queries import insert_predictions_with_features
 from src.config import TRAIN_DATA_DIR
 
 logging.basicConfig(
@@ -60,7 +61,7 @@ def main():
             len(missing_features)
         )
         for col in missing_features:
-            df_test[col] = pd.NA
+            df_test[col] = np.nan
 
     if extra_features:
         logging.info(
@@ -68,8 +69,31 @@ def main():
             len(extra_features)
         )
 
-    # Keep exact same order as training
     df_test_aligned = df_test[["SK_ID_CURR"] + features].copy()
+
+    # Clean infinities
+    df_test_aligned.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # Restore training dtypes
+    for col, dtype in feature_dtypes.items():
+        if col not in df_test_aligned.columns:
+            continue
+
+        try:
+            if dtype in ["float64", "float32"]:
+                df_test_aligned[col] = pd.to_numeric(df_test_aligned[col], errors="coerce").astype(dtype)
+            elif dtype in ["int64", "int32"]:
+                df_test_aligned[col] = pd.to_numeric(df_test_aligned[col], errors="coerce")
+                df_test_aligned[col] = df_test_aligned[col].astype(dtype)
+            elif dtype == "bool":
+                df_test_aligned[col] = df_test_aligned[col].astype("boolean")
+            elif dtype == "category":
+                df_test_aligned[col] = df_test_aligned[col].astype("category")
+            elif dtype == "object":
+                df_test_aligned[col] = df_test_aligned[col].astype("string")
+        except Exception as e:
+            logging.warning("Could not cast column %s to %s: %s", col, dtype, e)
+
     logging.info("Aligned test data shape: %s", df_test_aligned.shape)
 
     logging.info("Running model inference")
@@ -84,8 +108,13 @@ def main():
     submission.to_csv(submission_path, index=False)
     logging.info("Submission saved at %s", submission_path)
 
-    logging.info("Inserting predictions into PostgreSQL table 'predictions_log'")
-    insert_predictions(submission=submission, model_version=model_version, table_name="predictions_log")
+    logging.info("Inserting predictions with input features into PostgreSQL")
+    insert_predictions_with_features(
+        submission=submission,
+        features_df=df_test_aligned,
+        model_version=model_version,
+        table_name="predictions_log"
+    )
     logging.info("Predictions inserted successfully into PostgreSQL")
 
     logging.info("Inference pipeline finished successfully")
