@@ -68,6 +68,14 @@ def main():
     save_json(features, features_path)
     logging.info("Features saved at %s", features_path)
 
+    # Save feature dtypes
+    feature_df = df_train[features].copy()
+    feature_dtypes = {col: str(dtype) for col, dtype in feature_df.dtypes.items()}
+    feature_dtypes_path = os.path.join(ARTIFACTS_MODEL_DIR, "feature_dtypes.json")
+    save_json(feature_dtypes, feature_dtypes_path)
+    logging.info("Feature dtypes saved at %s", feature_dtypes_path)
+
+
     # Save metrics
     metrics = {
         "auc_train": result.get("auc_train"),
