@@ -10,3 +10,7 @@ ARTIFACTS_DIR = ROOT_DIR / "artifacts"
 FEATURES_DTYPES_DIR = ROOT_DIR / "artifacts" / "model" / "feature_dtypes.json"
 SUBMISSIONS_DIR = DATA_DIR / "submissions"
 MODEL_PATH = ARTIFACTS_DIR / "lgbm_model.pkl"
+
+
+
+DATABASE_URL = "postgresql://golduser:goldpassword@localhost:5432/mydatabase"

@@ -1,8 +1,7 @@
 from psycopg_pool import ConnectionPool
+from src.config import DATABASE_URL
 
-pool = ConnectionPool(
-    conninfo="postgresql://golduser:goldpassword@localhost:5432/mydatabase"
-)
+pool = ConnectionPool(conninfo=DATABASE_URL)
 
 def get_connection():
     return pool.connection()
