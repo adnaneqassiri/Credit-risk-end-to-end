@@ -1,5 +1,5 @@
 # Credit Risk
-<img src='/imgs/image.png'>
+<img src='./imgs/image.png'>
 
 [Link in Kaggle](https://www.kaggle.com/competitions/home-credit-default-risk/overview)
 
