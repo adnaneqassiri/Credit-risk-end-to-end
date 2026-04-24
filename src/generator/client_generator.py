@@ -1,6 +1,5 @@
 import json
 import random
-from pathlib import Path
 from typing import Any, Dict
 
 from src.config import ROOT_DIR
@@ -8,7 +7,6 @@ from src.db.queries import get_next_sk_id_curr
 
 ARTIFACTS_MODEL_DIR = ROOT_DIR / "artifacts" / "model"
 FEATURE_DTYPES_PATH = ARTIFACTS_MODEL_DIR / "feature_dtypes.json"
-GENERATED_CLIENTS_DIR = ROOT_DIR / "data" / "generated_clients"
 
 
 CATEGORY_VALUES = {
@@ -97,15 +95,3 @@ def generate_client_json() -> dict:
         "SK_ID_CURR": sk_id_curr,
         "features": features,
     }
-
-
-def save_client_json(client_json: dict) -> str:
-    GENERATED_CLIENTS_DIR.mkdir(parents=True, exist_ok=True)
-
-    sk_id_curr = client_json["SK_ID_CURR"]
-    output_path = GENERATED_CLIENTS_DIR / f"client_{sk_id_curr}.json"
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(client_json, f, indent=2, ensure_ascii=False)
-
-    return str(output_path)

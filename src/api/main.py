@@ -60,8 +60,6 @@ def generate_client():
 @app.get("/clients/{sk_id_curr}", response_model=GeneratedClientResponse)
 def get_client(sk_id_curr: int):
     try:
-        if sk_id_curr < 456256:
-            raise HTTPException(status_code=422, detail="SK_ID_CURR must be greater than or equal to 456256.")
         return prediction_service.get_client_by_id(sk_id_curr)
     except ClientNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))

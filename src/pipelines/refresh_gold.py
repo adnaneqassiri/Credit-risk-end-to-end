@@ -31,7 +31,9 @@ def main():
     # Stack verticale
     test_df["TARGET"] = pd.NA
     final_df = pd.concat([train_df, test_df], axis=0, ignore_index=True)
-    insert_data(final_df)
+    logging.info("Creating/replacing PostgreSQL table 'gold' with final features...")
+    insert_data(final_df, table_name="gold")
+    logging.info("PostgreSQL table 'gold' refreshed successfully")
     
 if __name__ == "__main__":
     main()  

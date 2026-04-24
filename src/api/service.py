@@ -6,8 +6,11 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from src.db.queries import get_generated_client_by_id, insert_generated_client
-from src.generator.client_generator import generate_client_json, save_client_json
+from src.db.queries import (
+    get_gold_client_by_id,
+    insert_client_into_gold,
+)
+from src.generator.client_generator import generate_client_json
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent.parent
@@ -46,12 +49,11 @@ class PredictionService:
 
     def generate_and_store_client(self) -> dict:
         client_json = generate_client_json()
-        insert_generated_client(client_json)
-        save_client_json(client_json)
+        insert_client_into_gold(client_json)
         return client_json
 
     def get_client_by_id(self, sk_id_curr: int) -> dict:
-        client_json = get_generated_client_by_id(sk_id_curr)
+        client_json = get_gold_client_by_id(sk_id_curr)
         if client_json is None:
             raise ClientNotFoundError(f"Client {sk_id_curr} was not found.")
         return client_json

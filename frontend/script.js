@@ -184,8 +184,8 @@ function readPredictionClientId() {
     throw new Error("SK_ID_CURR must be an integer.");
   }
 
-  if (value < 456256) {
-    throw new Error("SK_ID_CURR must be greater than or equal to 456256.");
+  if (value < 1) {
+    throw new Error("SK_ID_CURR must be a positive integer.");
   }
 
   return value;

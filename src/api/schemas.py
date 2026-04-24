@@ -9,7 +9,7 @@ class GeneratedClientResponse(BaseModel):
 
 
 class PredictByIdRequest(BaseModel):
-    SK_ID_CURR: int = Field(..., ge=456256)
+    SK_ID_CURR: int = Field(..., ge=1)
 
 
 class PredictionResponse(BaseModel):

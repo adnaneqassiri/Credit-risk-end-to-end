@@ -1,30 +1,19 @@
 from src.db.connection import get_connection
+from src.db.queries import ensure_gold_table, load_feature_dtypes
 
 
-def create_generated_clients_table():
-    sequence_query = """
-    CREATE SEQUENCE IF NOT EXISTS sk_id_curr_seq
-    START 456256
-    INCREMENT 1;
-    """
-
-    table_query = """
-    CREATE TABLE IF NOT EXISTS generated_clients (
-        id BIGSERIAL PRIMARY KEY,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "SK_ID_CURR" BIGINT UNIQUE NOT NULL,
-        client_data JSONB NOT NULL
-    );
-    """
+def create_gold_table_if_not_exists() -> None:
+    feature_dtypes = load_feature_dtypes()
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sequence_query)
-            cur.execute(table_query)
+            ensure_gold_table(cur, feature_dtypes, table_name="gold")
+            cur.execute("DROP TABLE IF EXISTS generated_clients;")
+            cur.execute("DROP SEQUENCE IF EXISTS sk_id_curr_seq;")
         conn.commit()
 
-    print("Sequence 'sk_id_curr_seq' and table 'generated_clients' are ready.")
+    print("Table 'gold' is ready. Legacy generated_clients storage was removed if it existed.")
 
 
 if __name__ == "__main__":
-    create_generated_clients_table()
+    create_gold_table_if_not_exists()
