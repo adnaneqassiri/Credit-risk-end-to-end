@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">Credit scoring API</p>
         <h1>Credit Risk Prediction Dashboard</h1>
-        <p class="subtitle">AI-powered credit default risk scoring system</p>
+        <p class="subtitle">Generate a loan applicant, inspect generated features, and predict credit default risk.</p>
       </div>
       <button id="checkStatusBtn" class="button button-secondary" type="button">
         Check API Status
@@ -22,7 +22,7 @@
     <section id="alert" class="alert hidden" role="alert"></section>
 
     <section class="grid">
-      <article class="card status-card">
+      <article class="card">
         <div class="card-heading">
           <div>
             <p class="section-kicker">System status</p>
@@ -54,51 +54,20 @@
       <article class="card">
         <div class="card-heading">
           <div>
-            <p class="section-kicker">Input data</p>
-            <h2>Prediction Form</h2>
+            <p class="section-kicker">Applicant simulator</p>
+            <h2>Generate Loan Applicant</h2>
           </div>
         </div>
 
-        <form id="predictionForm" novalidate>
-          <div class="form-grid">
-            <label>
-              <span>SK_ID_CURR</span>
-              <input id="skId" name="SK_ID_CURR" type="number" min="456257" step="1" value="456257" required>
-            </label>
-
-            <label>
-              <span>DEBT_RATIO</span>
-              <input id="debtRatio" name="DEBT_RATIO" type="number" min="0" step="0.01" value="0.42" required>
-            </label>
-
-            <label>
-              <span>TOTAL_DEBT</span>
-              <input id="totalDebt" name="TOTAL_DEBT" type="number" min="0" step="1000" value="150000" required>
-            </label>
-
-            <label>
-              <span>TOTAL_CREDIT</span>
-              <input id="totalCredit" name="TOTAL_CREDIT" type="number" min="0" step="1000" value="350000" required>
-            </label>
-
-            <label>
-              <span>ACTIVE_LOANS_COUNT</span>
-              <input id="activeLoans" name="ACTIVE_LOANS_COUNT" type="number" min="0" step="1" value="2" required>
-            </label>
+        <div class="generate-panel">
+          <button id="generateBtn" class="button button-primary" type="button">
+            Generate New Applicant
+          </button>
+          <div class="generated-id">
+            <span>Generated SK_ID_CURR</span>
+            <strong id="generatedClientId">-</strong>
           </div>
-
-          <label class="wide-field">
-            <span>Additional Features JSON</span>
-            <textarea id="additionalFeatures" rows="7" spellcheck="false" placeholder='{"EXT_SOURCE_1": 0.65, "DAYS_EMPLOYED": -1200}'></textarea>
-          </label>
-
-          <div class="actions">
-            <button id="predictBtn" class="button button-primary" type="submit">
-              Predict Risk
-            </button>
-            <span id="loadingText" class="loading hidden">Sending request...</span>
-          </div>
-        </form>
+        </div>
       </article>
     </section>
 
@@ -106,46 +75,71 @@
       <article class="card preview-card">
         <div class="card-heading">
           <div>
-            <p class="section-kicker">Payload</p>
-            <h2>Request Preview</h2>
+            <p class="section-kicker">Generated data</p>
+            <h2>Generated JSON Viewer</h2>
           </div>
         </div>
-        <pre id="requestPreview" class="code-preview"></pre>
+        <pre id="jsonViewer" class="code-preview">No applicant generated yet.</pre>
       </article>
 
-      <article id="resultCard" class="card result-card result-empty">
-        <div class="card-heading">
-          <div>
-            <p class="section-kicker">Output</p>
-            <h2>Prediction Result</h2>
-          </div>
-          <span id="riskBadge" class="badge badge-muted">Waiting</span>
-        </div>
-
-        <div id="emptyResult" class="empty-state">
-          Submit a prediction request to see the client risk score.
-        </div>
-
-        <div id="resultContent" class="result-content hidden">
-          <div class="result-main">
-            <span id="scoreValue">0%</span>
-            <strong id="riskClass">-</strong>
-          </div>
-
-          <div class="result-details">
+      <div class="side-stack">
+        <article class="card">
+          <div class="card-heading">
             <div>
-              <span>Client ID</span>
-              <strong id="resultClientId">-</strong>
-            </div>
-            <div>
-              <span>Model Version</span>
-              <strong id="resultModelVersion">-</strong>
+              <p class="section-kicker">Prediction</p>
+              <h2>Predict By Client ID</h2>
             </div>
           </div>
 
-          <p id="businessMessage" class="business-message"></p>
-        </div>
-      </article>
+          <form id="predictionForm" novalidate>
+            <label>
+              <span>SK_ID_CURR</span>
+              <input id="predictClientId" name="SK_ID_CURR" type="number" min="456256" step="1" placeholder="456256" required>
+            </label>
+
+            <div class="actions">
+              <button id="predictBtn" class="button button-primary" type="submit">
+                Predict Risk
+              </button>
+              <span id="loadingText" class="loading hidden">Running prediction...</span>
+            </div>
+          </form>
+        </article>
+
+        <article id="resultCard" class="card result-card result-empty">
+          <div class="card-heading compact-heading">
+            <div>
+              <p class="section-kicker">Output</p>
+              <h2>Prediction Result</h2>
+            </div>
+            <span id="riskBadge" class="badge badge-muted">Waiting</span>
+          </div>
+
+          <div id="emptyResult" class="empty-state">
+            Generate an applicant, then run a prediction by client ID.
+          </div>
+
+          <div id="resultContent" class="result-content hidden">
+            <div class="result-main">
+              <span id="scoreValue">0%</span>
+              <strong id="riskClass">-</strong>
+            </div>
+
+            <div class="result-details">
+              <div>
+                <span>Client ID</span>
+                <strong id="resultClientId">-</strong>
+              </div>
+              <div>
+                <span>Model Version</span>
+                <strong id="resultModelVersion">-</strong>
+              </div>
+            </div>
+
+            <p id="businessMessage" class="business-message"></p>
+          </div>
+        </article>
+      </div>
     </section>
   </main>
 

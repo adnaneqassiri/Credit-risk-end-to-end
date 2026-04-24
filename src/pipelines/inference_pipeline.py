@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 
 from src.model import test_model
-from src.db.queries import insert_predictions_with_features
 from src.config import TRAIN_DATA_DIR
 
 logging.basicConfig(
@@ -35,7 +34,6 @@ def main():
 
     model_path = os.path.join(ARTIFACTS_MODEL_DIR, "lgbm_model.pkl")
     feature_dtypes_path = os.path.join(ARTIFACTS_MODEL_DIR, "feature_dtypes.json")
-    params_path = os.path.join(ARTIFACTS_MODEL_DIR, "params.json")
 
     logging.info("Loading model from %s", model_path)
     model = joblib.load(model_path)
@@ -44,10 +42,6 @@ def main():
     logging.info("Loading feature dtypes from %s", feature_dtypes_path)
     feature_dtypes = load_json(feature_dtypes_path)
     features = list(feature_dtypes.keys())
-
-    logging.info("Loading params from %s", params_path)
-    params = load_json(params_path)
-    model_version = params.get("model_version", "1.0.0")
 
     if "SK_ID_CURR" not in df_test.columns:
         raise ValueError("Column 'SK_ID_CURR' is missing from test data.")
@@ -108,16 +102,9 @@ def main():
     submission.to_csv(submission_path, index=False)
     logging.info("Submission saved at %s", submission_path)
 
-    logging.info("Inserting predictions with input features into PostgreSQL")
-    insert_predictions_with_features(
-        submission=submission,
-        features_df=df_test_aligned,
-        model_version=model_version,
-        table_name="predictions_log"
+    logging.info(
+        "Inference pipeline finished successfully. Predictions are saved only to CSV."
     )
-    logging.info("Predictions inserted successfully into PostgreSQL")
-
-    logging.info("Inference pipeline finished successfully")
 
 
 if __name__ == "__main__":

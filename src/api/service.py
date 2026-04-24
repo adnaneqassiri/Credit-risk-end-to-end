@@ -1,19 +1,25 @@
-import os
 import json
-import joblib
 import logging
+from pathlib import Path
+
+import joblib
 import numpy as np
 import pandas as pd
 
-from src.db.queries import insert_predictions_with_features
+from src.db.queries import get_generated_client_by_id, insert_generated_client
+from src.generator.client_generator import generate_client_json, save_client_json
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.join(BASE_DIR, "..", "..")
-ARTIFACTS_MODEL_DIR = os.path.join(PROJECT_ROOT, "artifacts", "model")
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent.parent
+ARTIFACTS_MODEL_DIR = PROJECT_ROOT / "artifacts" / "model"
 
-MODEL_PATH = os.path.join(ARTIFACTS_MODEL_DIR, "lgbm_model.pkl")
-FEATURE_DTYPES_PATH = os.path.join(ARTIFACTS_MODEL_DIR, "feature_dtypes.json")
-PARAMS_PATH = os.path.join(ARTIFACTS_MODEL_DIR, "params.json")
+MODEL_PATH = ARTIFACTS_MODEL_DIR / "lgbm_model.pkl"
+FEATURE_DTYPES_PATH = ARTIFACTS_MODEL_DIR / "feature_dtypes.json"
+PARAMS_PATH = ARTIFACTS_MODEL_DIR / "params.json"
+
+
+class ClientNotFoundError(Exception):
+    pass
 
 
 class PredictionService:
@@ -38,10 +44,22 @@ class PredictionService:
         self.model_version = params.get("model_version", "1.0.0")
         logging.info("Prediction service loaded successfully")
 
+    def generate_and_store_client(self) -> dict:
+        client_json = generate_client_json()
+        insert_generated_client(client_json)
+        save_client_json(client_json)
+        return client_json
+
+    def get_client_by_id(self, sk_id_curr: int) -> dict:
+        client_json = get_generated_client_by_id(sk_id_curr)
+        if client_json is None:
+            raise ClientNotFoundError(f"Client {sk_id_curr} was not found.")
+        return client_json
+
     def get_risk_class(self, score: float) -> str:
         if score < 0.30:
             return "LOW"
-        elif score < 0.60:
+        if score < 0.60:
             return "MEDIUM"
         return "HIGH"
 
@@ -51,18 +69,13 @@ class PredictionService:
 
         df = pd.DataFrame([row])
 
-        # Add missing columns
         for col in self.features:
             if col not in df.columns:
                 df[col] = np.nan
 
-        # Keep exact order
         df = df[["SK_ID_CURR"] + self.features].copy()
-
-        # Clean infinities
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
-        # Restore training dtypes
         for col, dtype in self.feature_dtypes.items():
             if col not in df.columns:
                 continue
@@ -71,40 +84,27 @@ class PredictionService:
                 if dtype in ["float64", "float32"]:
                     df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
                 elif dtype in ["int64", "int32"]:
-                    df[col] = pd.to_numeric(df[col], errors="coerce")
-                    df[col] = df[col].astype(dtype)
+                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
                 elif dtype == "bool":
                     df[col] = df[col].astype("boolean")
                 elif dtype == "category":
                     df[col] = df[col].astype("category")
-                elif dtype == "object":
+                elif dtype in ["object", "string"]:
                     df[col] = df[col].astype("string")
             except Exception as e:
                 logging.warning("Could not cast column %s to %s: %s", col, dtype, e)
 
         return df
 
-    def predict(self, sk_id_curr: int, features: dict, log_to_db: bool = True) -> dict:
+    def predict_by_client_id(self, sk_id_curr: int) -> dict:
+        client_json = self.get_client_by_id(sk_id_curr)
+        features = client_json.get("features", {})
+
         df = self.prepare_features_df(sk_id_curr, features)
+        x = df.drop(columns=["SK_ID_CURR"])
 
-        X = df.drop(columns=["SK_ID_CURR"])
-        score = float(self.model.predict_proba(X)[:, 1][0])
+        score = float(self.model.predict_proba(x)[:, 1][0])
         risk_class = self.get_risk_class(score)
-
-        submission = pd.DataFrame(
-            {
-                "SK_ID_CURR": [sk_id_curr],
-                "TARGET": [score],
-            }
-        )
-
-        if log_to_db:
-            insert_predictions_with_features(
-                submission=submission,
-                features_df=df,
-                model_version=self.model_version,
-                table_name="predictions_log"
-            )
 
         return {
             "SK_ID_CURR": sk_id_curr,

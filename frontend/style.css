@@ -90,6 +90,11 @@ h2 {
   margin-top: 20px;
 }
 
+.side-stack {
+  display: grid;
+  gap: 20px;
+}
+
 .card {
   min-width: 0;
   background: var(--surface);
@@ -105,6 +110,10 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 22px;
+}
+
+.compact-heading {
+  margin-bottom: 18px;
 }
 
 .badge {
@@ -208,10 +217,31 @@ label span {
   font-size: 1.15rem;
 }
 
-.form-grid {
+.generate-panel {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: auto 1fr;
+  align-items: center;
   gap: 16px;
+}
+
+.generated-id {
+  min-height: 58px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 12px 14px;
+}
+
+.generated-id span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.generated-id strong {
+  font-size: 1.3rem;
 }
 
 label {
@@ -283,10 +313,10 @@ textarea:focus {
 }
 
 .code-preview {
-  min-height: 310px;
-  max-height: 430px;
+  height: 350px;
   margin: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #0f172a;
@@ -378,6 +408,7 @@ textarea:focus {
   }
 
   .form-grid,
+  .generate-panel,
   .status-grid,
   .result-details {
     grid-template-columns: 1fr;

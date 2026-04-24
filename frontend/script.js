@@ -1,8 +1,11 @@
 const API_BASE_URL = "http://127.0.0.1:8000";
 
+console.log("API base URL:", API_BASE_URL);
+
 const elements = {
   alert: document.querySelector("#alert"),
   checkStatusBtn: document.querySelector("#checkStatusBtn"),
+  generateBtn: document.querySelector("#generateBtn"),
   predictionForm: document.querySelector("#predictionForm"),
   predictBtn: document.querySelector("#predictBtn"),
   loadingText: document.querySelector("#loadingText"),
@@ -11,7 +14,9 @@ const elements = {
   modelName: document.querySelector("#modelName"),
   modelVersion: document.querySelector("#modelVersion"),
   featureCount: document.querySelector("#featureCount"),
-  requestPreview: document.querySelector("#requestPreview"),
+  generatedClientId: document.querySelector("#generatedClientId"),
+  jsonViewer: document.querySelector("#jsonViewer"),
+  predictClientId: document.querySelector("#predictClientId"),
   resultCard: document.querySelector("#resultCard"),
   emptyResult: document.querySelector("#emptyResult"),
   resultContent: document.querySelector("#resultContent"),
@@ -21,20 +26,12 @@ const elements = {
   resultClientId: document.querySelector("#resultClientId"),
   resultModelVersion: document.querySelector("#resultModelVersion"),
   businessMessage: document.querySelector("#businessMessage"),
-  fields: {
-    skId: document.querySelector("#skId"),
-    debtRatio: document.querySelector("#debtRatio"),
-    totalDebt: document.querySelector("#totalDebt"),
-    totalCredit: document.querySelector("#totalCredit"),
-    activeLoans: document.querySelector("#activeLoans"),
-    additionalFeatures: document.querySelector("#additionalFeatures"),
-  },
 };
 
 const riskMessages = {
-  LOW: "This client presents a low credit default risk.",
-  MEDIUM: "This client requires manual review.",
-  HIGH: "This client presents a high probability of credit default.",
+  LOW: "This applicant presents a low credit default risk.",
+  MEDIUM: "This applicant requires manual review.",
+  HIGH: "This applicant presents a high probability of credit default.",
 };
 
 function showAlert(message, type = "error") {
@@ -46,69 +43,8 @@ function hideAlert() {
   elements.alert.classList.add("hidden");
 }
 
-function parseNumberField(input, label) {
-  if (input.value.trim() === "") {
-    throw new Error(`${label} is required.`);
-  }
-
-  const value = Number(input.value);
-  if (!Number.isFinite(value)) {
-    throw new Error(`${label} must be a valid number.`);
-  }
-
-  return value;
-}
-
-function parseAdditionalFeatures() {
-  const rawJson = elements.fields.additionalFeatures.value.trim();
-  if (!rawJson) {
-    return {};
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(rawJson);
-  } catch (error) {
-    throw new Error("Additional Features JSON is invalid. Please enter a valid JSON object.");
-  }
-
-  if (Array.isArray(parsed) || parsed === null || typeof parsed !== "object") {
-    throw new Error("Additional Features JSON must be a JSON object.");
-  }
-
-  return parsed;
-}
-
-function buildPayload() {
-  const skId = parseNumberField(elements.fields.skId, "SK_ID_CURR");
-  if (!Number.isInteger(skId)) {
-    throw new Error("SK_ID_CURR must be an integer.");
-  }
-
-  // The current FastAPI schema accepts SK_ID_CURR values greater than 456256.
-  if (skId <= 456256) {
-    throw new Error("SK_ID_CURR must be greater than 456256 for this API schema.");
-  }
-
-  return {
-    SK_ID_CURR: skId,
-    features: {
-      DEBT_RATIO: parseNumberField(elements.fields.debtRatio, "DEBT_RATIO"),
-      TOTAL_DEBT: parseNumberField(elements.fields.totalDebt, "TOTAL_DEBT"),
-      TOTAL_CREDIT: parseNumberField(elements.fields.totalCredit, "TOTAL_CREDIT"),
-      ACTIVE_LOANS_COUNT: parseNumberField(elements.fields.activeLoans, "ACTIVE_LOANS_COUNT"),
-      ...parseAdditionalFeatures(),
-    },
-  };
-}
-
-function updateRequestPreview() {
-  try {
-    const payload = buildPayload();
-    elements.requestPreview.textContent = JSON.stringify(payload, null, 2);
-  } catch (error) {
-    elements.requestPreview.textContent = error.message;
-  }
+function setLoading(element, isLoading) {
+  element.disabled = isLoading;
 }
 
 function setApiBadge(status, type) {
@@ -116,18 +52,70 @@ function setApiBadge(status, type) {
   elements.apiBadge.className = `badge badge-${type}`;
 }
 
-async function fetchJson(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+function buildApiErrorMessage(error) {
+  if (error instanceof TypeError) {
+    return [
+      "API unreachable.",
+      "Verify that FastAPI is running on http://127.0.0.1:8000.",
+      "Verify CORS configuration.",
+      `Browser error: ${error.message}`,
+    ].join(" ");
+  }
+
+  return error.message;
+}
+
+async function apiFetch(path, options = {}) {
+  const url = `${API_BASE_URL}${path}`;
+  const requestOptions = {
+    ...options,
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
-    ...options,
-  });
+  };
 
-  const body = await response.json().catch(() => null);
+  console.log("API request:", requestOptions.method || "GET", url);
+
+  let response;
+  try {
+    response = await fetch(url, requestOptions);
+  } catch (error) {
+    console.error("API fetch failed:", {
+      url,
+      message: error.message,
+      error,
+    });
+    throw new Error(buildApiErrorMessage(error));
+  }
+
+  console.log("API response status:", response.status, response.statusText, url);
+
+  const rawBody = await response.text();
+  let body = null;
+
+  if (rawBody) {
+    try {
+      body = JSON.parse(rawBody);
+    } catch (error) {
+      console.error("API response is not valid JSON:", {
+        url,
+        status: response.status,
+        rawBody,
+        error,
+      });
+      throw new Error("API returned a non-JSON response.");
+    }
+  }
 
   if (!response.ok) {
+    console.error("API error response:", {
+      url,
+      status: response.status,
+      rawBody,
+      body,
+    });
+
     const detail = body?.detail;
     const message = Array.isArray(detail)
       ? detail.map((item) => item.msg).join(" ")
@@ -140,13 +128,11 @@ async function fetchJson(path, options = {}) {
 
 async function checkApiStatus() {
   hideAlert();
-  elements.checkStatusBtn.disabled = true;
+  setLoading(elements.checkStatusBtn, true);
 
   try {
-    const [health, info] = await Promise.all([
-      fetchJson("/health"),
-      fetchJson("/model/info"),
-    ]);
+    const health = await apiFetch("/health");
+    const info = await apiFetch("/model/info");
 
     elements.apiStatus.textContent = health.status?.toUpperCase() || "UNKNOWN";
     elements.modelName.textContent = info.model_name || "-";
@@ -155,15 +141,54 @@ async function checkApiStatus() {
     setApiBadge("Online", "ok");
     showAlert("API is available and model metadata was loaded.", "success");
   } catch (error) {
+    console.error("API status check failed:", error.message);
     elements.apiStatus.textContent = "Unavailable";
     elements.modelName.textContent = "-";
     elements.modelVersion.textContent = "-";
     elements.featureCount.textContent = "-";
     setApiBadge("Offline", "error");
-    showAlert(`API unavailable: ${error.message}`);
+    showAlert(`Offline: ${error.message}`);
   } finally {
-    elements.checkStatusBtn.disabled = false;
+    setLoading(elements.checkStatusBtn, false);
   }
+}
+
+async function generateApplicant() {
+  hideAlert();
+  setLoading(elements.generateBtn, true);
+  elements.generateBtn.textContent = "Generating...";
+
+  try {
+    const client = await apiFetch("/clients/generate", { method: "POST" });
+    elements.generatedClientId.textContent = client.SK_ID_CURR;
+    elements.predictClientId.value = client.SK_ID_CURR;
+    elements.jsonViewer.textContent = JSON.stringify(client, null, 2);
+    showAlert(`Applicant ${client.SK_ID_CURR} generated and stored successfully.`, "success");
+  } catch (error) {
+    console.error("Applicant generation failed:", error.message);
+    showAlert(`Applicant generation failed: ${error.message}`);
+  } finally {
+    elements.generateBtn.textContent = "Generate New Applicant";
+    setLoading(elements.generateBtn, false);
+  }
+}
+
+function readPredictionClientId() {
+  const rawValue = elements.predictClientId.value.trim();
+  if (!rawValue) {
+    throw new Error("SK_ID_CURR is required.");
+  }
+
+  const value = Number(rawValue);
+  if (!Number.isInteger(value)) {
+    throw new Error("SK_ID_CURR must be an integer.");
+  }
+
+  if (value < 456256) {
+    throw new Error("SK_ID_CURR must be greater than or equal to 456256.");
+  }
+
+  return value;
 }
 
 function resetResultClasses() {
@@ -193,10 +218,9 @@ async function handlePredictionSubmit(event) {
   event.preventDefault();
   hideAlert();
 
-  let payload;
+  let skIdCurr;
   try {
-    payload = buildPayload();
-    updateRequestPreview();
+    skIdCurr = readPredictionClientId();
   } catch (error) {
     showAlert(error.message);
     return;
@@ -206,12 +230,15 @@ async function handlePredictionSubmit(event) {
   elements.loadingText.classList.remove("hidden");
 
   try {
-    const result = await fetchJson("/predict", {
+    const result = await apiFetch("/predict/by-id", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        SK_ID_CURR: Number(skIdCurr),
+      }),
     });
     renderPredictionResult(result);
   } catch (error) {
+    console.error("Prediction failed:", error.message);
     showAlert(`Prediction failed: ${error.message}`);
   } finally {
     elements.predictBtn.disabled = false;
@@ -219,12 +246,8 @@ async function handlePredictionSubmit(event) {
   }
 }
 
-Object.values(elements.fields).forEach((field) => {
-  field.addEventListener("input", updateRequestPreview);
-});
-
 elements.checkStatusBtn.addEventListener("click", checkApiStatus);
+elements.generateBtn.addEventListener("click", generateApplicant);
 elements.predictionForm.addEventListener("submit", handlePredictionSubmit);
 
-updateRequestPreview();
 checkApiStatus();

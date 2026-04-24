@@ -1,26 +1,30 @@
 from src.db.connection import get_connection
 
 
-def create_predictions_table(table_name: str = "predictions_log"):
-    query = f"""
-    CREATE TABLE IF NOT EXISTS "{table_name}" (
+def create_generated_clients_table():
+    sequence_query = """
+    CREATE SEQUENCE IF NOT EXISTS sk_id_curr_seq
+    START 456256
+    INCREMENT 1;
+    """
+
+    table_query = """
+    CREATE TABLE IF NOT EXISTS generated_clients (
         id BIGSERIAL PRIMARY KEY,
-        predicted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "SK_ID_CURR" BIGINT,
-        prediction_score DOUBLE PRECISION,
-        risk_class TEXT,
-        model_version TEXT,
-        input_features JSONB
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "SK_ID_CURR" BIGINT UNIQUE NOT NULL,
+        client_data JSONB NOT NULL
     );
     """
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query)
+            cur.execute(sequence_query)
+            cur.execute(table_query)
         conn.commit()
 
-    print(f"Table '{table_name}' créée avec succès.")
+    print("Sequence 'sk_id_curr_seq' and table 'generated_clients' are ready.")
 
 
 if __name__ == "__main__":
-    create_predictions_table()
+    create_generated_clients_table()
