@@ -1,0 +1,3 @@
+# acceder au database
+
+docker exec -it postgres_db psql -U golduser -d mydatabase
