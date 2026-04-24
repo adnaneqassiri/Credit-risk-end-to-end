@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Credit Risk Prediction Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Credit scoring API</p>
+        <h1>Credit Risk Prediction Dashboard</h1>
+        <p class="subtitle">AI-powered credit default risk scoring system</p>
+      </div>
+      <button id="checkStatusBtn" class="button button-secondary" type="button">
+        Check API Status
+      </button>
+    </header>
+
+    <section id="alert" class="alert hidden" role="alert"></section>
+
+    <section class="grid">
+      <article class="card status-card">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">System status</p>
+            <h2>API & Model</h2>
+          </div>
+          <span id="apiBadge" class="badge badge-muted">Unchecked</span>
+        </div>
+
+        <div class="status-grid">
+          <div class="metric">
+            <span>Status</span>
+            <strong id="apiStatus">-</strong>
+          </div>
+          <div class="metric">
+            <span>Model</span>
+            <strong id="modelName">-</strong>
+          </div>
+          <div class="metric">
+            <span>Version</span>
+            <strong id="modelVersion">-</strong>
+          </div>
+          <div class="metric">
+            <span>Features</span>
+            <strong id="featureCount">-</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">Input data</p>
+            <h2>Prediction Form</h2>
+          </div>
+        </div>
+
+        <form id="predictionForm" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>SK_ID_CURR</span>
+              <input id="skId" name="SK_ID_CURR" type="number" min="456257" step="1" value="456257" required>
+            </label>
+
+            <label>
+              <span>DEBT_RATIO</span>
+              <input id="debtRatio" name="DEBT_RATIO" type="number" min="0" step="0.01" value="0.42" required>
+            </label>
+
+            <label>
+              <span>TOTAL_DEBT</span>
+              <input id="totalDebt" name="TOTAL_DEBT" type="number" min="0" step="1000" value="150000" required>
+            </label>
+
+            <label>
+              <span>TOTAL_CREDIT</span>
+              <input id="totalCredit" name="TOTAL_CREDIT" type="number" min="0" step="1000" value="350000" required>
+            </label>
+
+            <label>
+              <span>ACTIVE_LOANS_COUNT</span>
+              <input id="activeLoans" name="ACTIVE_LOANS_COUNT" type="number" min="0" step="1" value="2" required>
+            </label>
+          </div>
+
+          <label class="wide-field">
+            <span>Additional Features JSON</span>
+            <textarea id="additionalFeatures" rows="7" spellcheck="false" placeholder='{"EXT_SOURCE_1": 0.65, "DAYS_EMPLOYED": -1200}'></textarea>
+          </label>
+
+          <div class="actions">
+            <button id="predictBtn" class="button button-primary" type="submit">
+              Predict Risk
+            </button>
+            <span id="loadingText" class="loading hidden">Sending request...</span>
+          </div>
+        </form>
+      </article>
+    </section>
+
+    <section class="grid bottom-grid">
+      <article class="card preview-card">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">Payload</p>
+            <h2>Request Preview</h2>
+          </div>
+        </div>
+        <pre id="requestPreview" class="code-preview"></pre>
+      </article>
+
+      <article id="resultCard" class="card result-card result-empty">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">Output</p>
+            <h2>Prediction Result</h2>
+          </div>
+          <span id="riskBadge" class="badge badge-muted">Waiting</span>
+        </div>
+
+        <div id="emptyResult" class="empty-state">
+          Submit a prediction request to see the client risk score.
+        </div>
+
+        <div id="resultContent" class="result-content hidden">
+          <div class="result-main">
+            <span id="scoreValue">0%</span>
+            <strong id="riskClass">-</strong>
+          </div>
+
+          <div class="result-details">
+            <div>
+              <span>Client ID</span>
+              <strong id="resultClientId">-</strong>
+            </div>
+            <div>
+              <span>Model Version</span>
+              <strong id="resultModelVersion">-</strong>
+            </div>
+          </div>
+
+          <p id="businessMessage" class="business-message"></p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

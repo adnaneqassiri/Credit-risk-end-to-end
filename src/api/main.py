@@ -1,5 +1,6 @@
 import logging
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.schemas import PredictionRequest, PredictionResponse
 from src.api.service import PredictionService
@@ -13,6 +14,19 @@ app = FastAPI(
     title="Credit Risk Prediction API",
     version="1.0.0",
     description="API for credit default risk prediction using LightGBM"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "http://localhost:8001",
+        "http://127.0.0.1:8001",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 prediction_service = PredictionService()
