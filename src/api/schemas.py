@@ -3,7 +3,7 @@ from typing import Dict, Any
 
 
 class PredictionRequest(BaseModel):
-    SK_ID_CURR: int = Field(..., gt=0, example=123456)
+    SK_ID_CURR: int = Field(..., gt=456256, lt=999999)
     features: Dict[str, Any] = Field(
         default_factory=dict,
         example={

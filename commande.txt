@@ -1,3 +1,10 @@
 # acceder au database
 
 docker exec -it postgres_db psql -U golduser -d mydatabase
+
+
+# lancer api 
+
+uvicorn src.api.main:app --reload
+
+http://127.0.0.1:8000/docs
